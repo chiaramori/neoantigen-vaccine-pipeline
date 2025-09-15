@@ -78,6 +78,11 @@ targets_group.add_argument(
         "run beyond that",
     action="store_true")
 
+targets_group.add_argument(
+    "--annotate-vcfs",
+    help="If this argument is present, will run the VCF annotation script",
+    action="store_true")
+
 qc_group = parser.add_argument_group("QC-related arguments")
 
 qc_group.add_argument(
@@ -225,7 +230,10 @@ def get_and_check_targets(args, config):
         elif args.process_reference_only:
             targets = [config["reference"]["genome"] + ".done"]
         else:
-            targets = default_vaxrank_targets(config) + annotated_vaxrank_targets(config)
+            targets = default_vaxrank_targets(config)
+
+        if args.annotate_vcfs:
+            targets.extend(annotated_vaxrank_targets(config))
     
     if len(targets) == 0:
         raise ValueError("Must specify at least one target")
