@@ -44,48 +44,13 @@ def _get_read_group_header(wildcards):
 # fq2bam alignment
 ################################################################
 
-rule fq2bam_single_end:
-    input:
-        r = join(WORKDIR, "{prefix}.fastq.gz"),
-        ref = config["reference"]["genome"] + ".done"
-    output:
-        temp(join(WORKDIR, "{prefix}_aligned_coordinate_sorted_dups.bam"))
-    params:
-        reference = config["reference"]["genome"],
-        extra = "-O 6 -E 1 -B 4"
-    threads: _get_threads_for_alignment
-    benchmark:
-        join(BENCHMARKDIR, "{prefix}_fq2bam.txt")
-    log:
-        join(LOGDIR, "{prefix}_fq2bam.log")
-    run:
-        if METHOD == "gpu":
-            shell(
-                "fq2bam align "
-                "--reference {params.reference} "
-                "--input {input.r} "
-                "--output {output} "
-                "--threads {threads} "
-                "--gpus {NUM_GPUS} "
-                "> {log} 2>&1"
-            )
-        else:
-            shell(
-                "fq2bam align "
-                "--reference {params.reference} "
-                "--input {input.r} "
-                "--output {output} "
-                "--threads {threads} "
-                "> {log} 2>&1"
-            )
-
 rule fq2bam_paired_end:
     input:
         r1 = join(WORKDIR, "{prefix}_R1.fastq.gz"),
         r2 = join(WORKDIR, "{prefix}_R2.fastq.gz"),
         ref = config["reference"]["genome"] + ".done"
     output:
-        temp(join(WORKDIR, "{prefix}_aligned_coordinate_sorted_dups.bam"))
+        temp(join(WORKDIR, "{prefix}_aligned_coordinate_sorted.bam"))
     params:
         reference = config["reference"]["genome"],
         extra = "-O 6 -E 1 -B 4"
@@ -121,26 +86,34 @@ rule fq2bam_paired_end:
 
 rule merge_normal_aligned_fragments:
     input:
-        expand(join(WORKDIR, "normal_{fragment_id}_aligned_coordinate_sorted_dups.bam"),
+        # fq2bam produces *_aligned_coordinate_sorted.bam, not *_dups.bam
+        expand(join(WORKDIR, "normal_{fragment_id}_aligned_coordinate_sorted.bam"),
                fragment_id=_get_fragment_ids("normal"))
     output:
-        temp(join(WORKDIR, "normal_merged_aligned_coordinate_sorted_dups.bam"))
+        # merged BAM for downstream analysis
+        temp(join(WORKDIR, "normal_merged_aligned_coordinate_sorted_dups.bam")),
+        temp(join(WORKDIR, "normal_merged_aligned_coordinate.bam"))  # for RNA
     threads: _get_half_cores
     run:
         if len(input) > 1:
-            shell("sambamba merge -t {threads} {output} {input}")
+            shell("sambamba merge -t {threads} {output[0]} {input}")
+            shell("cp {output[0]} {output[1]}")  # copy for RNA rules
         else:
-            shell("cp {input} {output}")
+            shell("cp {input[0]} {output[0]}")
+            shell("cp {output[0]} {output[1]}")
 
 rule merge_tumor_aligned_fragments:
     input:
-        expand(join(WORKDIR, "tumor_{fragment_id}_aligned_coordinate_sorted_dups.bam"),
+        expand(join(WORKDIR, "tumor_{fragment_id}_aligned_coordinate_sorted.bam"),
                fragment_id=_get_fragment_ids("tumor"))
     output:
-        temp(join(WORKDIR, "tumor_merged_aligned_coordinate_sorted_dups.bam"))
+        temp(join(WORKDIR, "tumor_merged_aligned_coordinate_sorted_dups.bam")),
+        temp(join(WORKDIR, "tumor_merged_aligned_coordinate.bam"))  # for RNA
     threads: _get_half_cores
     run:
         if len(input) > 1:
-            shell("sambamba merge -t {threads} {output} {input}")
+            shell("sambamba merge -t {threads} {output[0]} {input}")
+            shell("cp {output[0]} {output[1]}")
         else:
-            shell("cp {input} {output}")
+            shell("cp {input[0]} {output[0]}")
+            shell("cp {output[0]} {output[1]}")
