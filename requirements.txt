@@ -7,7 +7,6 @@ pyyaml
 snakemake==5.4.4
 varcode==1.2.1
 vaxrank==1.4.0
-tensorflow==2.15.0
 mhcflurry
 numpy
 pandas

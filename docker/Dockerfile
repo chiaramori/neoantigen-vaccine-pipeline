@@ -149,12 +149,16 @@ RUN $PGV_BIN/gatk-register $HOME/GenomeAnalysisTK.jar
 # Install Python requirements
 ##########################
 COPY requirements.txt $HOME
-RUN $MHCFLURRY_BIN/pip install --upgrade pip setuptools wheel
-RUN $MHCFLURRY_BIN/pip install -r $HOME/requirements.txt
+RUN $PGV_BIN/pip install --upgrade pip setuptools wheel
+RUN $PGV_BIN/pip install -r $HOME/requirements.txt
+RUN $MHCFLURRY_BIN/python -m pip install --upgrade pip setuptools wheel
+RUN $MHCFLURRY_BIN/python -m pip install "mhcflurry[tensorflow]"
 RUN $MHCFLURRY_BIN/mhcflurry-downloads fetch
 RUN $MHCFLURRY_BIN/mhcflurry-predict --alleles HLA-A0201 --peptides SIINFEKL
 
-ENV PATH=$MHCFLURRY_BIN:$PGV_BIN:$PATH
+
+ENV PATH=$PGV_BIN:$MHCFLURRY_BIN:$PATH
+
 
 ##########################
 # Vaxrank & Snakemake setup
@@ -183,7 +187,7 @@ RUN mkdir -p $HOME/.snakemake && chown -R $USER:$USER $HOME/.snakemake
 
 # Patch Vaxrank report.py
 RUN sed -i "/^\s*except requests\.exceptions\.ConnectionError as e:/s/except requests\.exceptions\.ConnectionError as e:/except Exception as e:/g" \
-    $($MHCFLURRY_BIN/python -c "import site; print(site.getsitepackages()[0])")/vaxrank/report.py
+    $($PGV_BIN/python -c "import site; print(site.getsitepackages()[0])")/vaxrank/report.py
 
 ##########################
 # Entrypoint
